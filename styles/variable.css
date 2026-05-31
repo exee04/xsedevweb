@@ -1,0 +1,8 @@
+:root {
+  --background: #181818;
+  --foreground: #f2f2f2;
+  --primary: #8758ff;
+  --secondary: #5cb8e4;
+
+  --main-font-mono: "JetBrains Mono", monospace;
+}

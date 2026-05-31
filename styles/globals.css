@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "./variable.css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --font-mono: var(--main-font-mono);
+}
+
+@layer utilities {
+  .shadow-brutal {
+    box-shadow: 2px 2px 0px var(--foreground);
+  }
+}
+
+@keyframes inputBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.input-blink {
+  animation: inputBlink 1s infinite;
+}
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--main-font-mono);
+}

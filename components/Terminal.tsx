@@ -1,0 +1,413 @@
+"use client";
+import React, { useEffect, useRef, useState } from "react";
+import { useTerminal, blank, line, type Line } from "@/hooks/useTerminal";
+import { commands } from "@/lib/commands";
+
+const ASCII_ART = `
+⠀⠀⠀⢠⣾⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⣰⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⢰⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣄⣀⣀⣤⣤⣶⣾⣿⣿⣿⡷
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏⠀⠀⠀⠀
+⣿⣿⣿⡇⠀⡾⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀
+⣿⣿⣿⣧⡀⠁⣀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠉⢹⠉⠙⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣀⠀⣀⣼⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠀⠤⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⣿⣿⠿⣿⣿⣿⣿⣿⣿⣿⠿⠋⢃⠈⠢⡁⠒⠄⡀⠈⠁⠀⠀⠀⠀⠀⠀⠀
+⣿⣿⠟⠁⠀⠀⠈⠉⠉⠁⠀⠀⠀⠀⠈⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+`.trim();
+
+const RIGHT_COLUMN = [
+  "  xsedev", // ← your name / handle
+  "  full-stack developer",
+  "",
+  "  > about      who I am",
+  "  > skills     tech stack",
+  "  > projects   things I've built",
+  "  > contact    get in touch",
+  "",
+  "  ───────────────────────",
+  "",
+  "  type a command to get started",
+];
+
+const MOBILE_RIGHT_COLUMN = [
+  "  xsedev",
+  "  full-stack developer",
+  "",
+  "  tap ? for commands",
+];
+
+function buildWelcomeLines(isMobileView: boolean = false): Line[] {
+  const artRows = ASCII_ART.split("\n");
+  const columnToUse = isMobileView ? MOBILE_RIGHT_COLUMN : RIGHT_COLUMN;
+  const totalRows = Math.max(artRows.length, columnToUse.length);
+  const offset = Math.floor((totalRows - columnToUse.length) / 2);
+
+  return [
+    ...Array.from({ length: totalRows }, (_, i) => ({
+      id: i,
+      type: "columns" as const,
+      text: "",
+      left: artRows[i] ?? "",
+      right: columnToUse[i - offset] ?? "",
+    })),
+    blank(),
+  ];
+}
+
+// Command drawer component
+function CommandDrawer({
+  isOpen,
+  onClose,
+  commands,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  commands: Record<string, { description: string }>;
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Drawer */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-primary transition-transform duration-300 md:hidden ${
+          isOpen ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{
+          maxHeight: "70vh",
+        }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-primary">
+          <span className="text-primary font-mono text-sm">
+            available commands
+          </span>
+          <button
+            onClick={onClose}
+            className="text-primary text-lg hover:text-foreground transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div
+          className="overflow-y-auto px-4 py-3"
+          style={{ maxHeight: "calc(70vh - 56px)" }}
+        >
+          <div className="space-y-2 font-mono text-xs text-primary">
+            {Object.entries(commands).map(([name, cmd]) => (
+              <div key={name} className="pb-2 border-b border-primary/20">
+                <div className="text-foreground/80 mb-1">
+                  <span className="text-primary">&gt; {name}</span>
+                </div>
+                <div className="text-foreground/60 ml-2">{cmd.description}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-4 py-2 border-t border-primary/20 text-xs text-foreground/50 font-mono">
+          press ? to close
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function Terminal() {
+  const outputRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [shouldClear, setShouldClear] = useState(false);
+
+  // Detect mobile view using media query
+  useEffect(() => {
+    // Check initial state - use a more mobile-specific breakpoint
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const newMobileView = mediaQuery.matches;
+
+    if (newMobileView !== isMobileView) {
+      setIsMobileView(newMobileView);
+      setShouldClear(true); // Flag that we need to clear
+    }
+
+    // Listen for changes
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobileView(e.matches);
+      setShouldClear(true); // Flag that we need to clear
+    };
+
+    // Also listen for orientation changes
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        const mq = window.matchMedia("(max-width: 900px)");
+        setIsMobileView(mq.matches);
+        setShouldClear(true);
+      }, 100);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    window.addEventListener("orientationchange", handleOrientationChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+    };
+  }, [isMobileView]);
+
+  // Generate welcome lines based on device type
+  const WELCOME_LINES = buildWelcomeLines(isMobileView);
+
+  const { lines, input, setInput, handleKeyDown } = useTerminal(
+    commands,
+    WELCOME_LINES,
+  );
+
+  // Trigger clear when view changes
+  useEffect(() => {
+    if (shouldClear) {
+      setInput("clear");
+      setShouldClear(false);
+
+      // Properly trigger the Enter key on the input element
+      const triggerClear = () => {
+        if (inputRef.current) {
+          inputRef.current.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Enter",
+              code: "Enter",
+              keyCode: 13,
+              which: 13,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
+      };
+
+      // Use rAF to ensure it happens after state updates
+      requestAnimationFrame(() => {
+        setTimeout(triggerClear, 50);
+      });
+    }
+  }, [shouldClear]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only intercept ? if input is NOT focused
+      const isInputFocused = document.activeElement === inputRef.current;
+
+      // Toggle drawer with ? (only if not typing)
+      if ((e.key === "?" || (e.shiftKey && e.key === "/")) && !isInputFocused) {
+        e.preventDefault();
+        setShowDrawer((prev) => !prev);
+      }
+      // Close drawer with Escape
+      if (e.key === "Escape" && showDrawer) {
+        setShowDrawer(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [showDrawer]);
+
+  // Handle mobile keyboard appearance/disappearance
+  useEffect(() => {
+    const handleFocus = () => {
+      // Scroll input into view when keyboard appears
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }, 300);
+    };
+
+    const handleViewportChange = () => {
+      // Keep output scrolled to bottom when keyboard changes viewport
+      setTimeout(() => {
+        outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
+      }, 100);
+    };
+
+    const input = inputRef.current;
+    input?.addEventListener("focus", handleFocus);
+    window.visualViewport?.addEventListener("resize", handleViewportChange);
+
+    return () => {
+      input?.removeEventListener("focus", handleFocus);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        handleViewportChange,
+      );
+    };
+  }, []);
+
+  return (
+    <main
+      className="h-screen w-screen bg-background text-foreground flex items-center justify-center"
+      onClick={() => {
+        inputRef.current?.focus();
+      }}
+    >
+      <div
+        className="w-full md:w-[90%] md:h-[80dvh] md:min-h-[300px] shadow-[2px_2px_0px_var(--foreground)] overflow-hidden flex flex-col relative"
+        style={{
+          height: "100dvh",
+          maxHeight: "100vh", // Fallback for when keyboard appears
+        }}
+      >
+        {/* title bar */}
+        <div className="bg-primary py-2 md:py-3 px-4 pl-4 md:pl-[5%] shadow-[2px_0px_0px_var(--primary)] flex items-center shrink-0 text-sm md:text-base">
+          <span>XSE TERMINAL</span>
+        </div>
+
+        {/* Floating help button (mobile only) */}
+        <button
+          onClick={() => setShowDrawer(!showDrawer)}
+          className="md:hidden fixed bottom-20 right-4 w-10 h-10 bg-primary text-background border border-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors font-mono text-lg font-bold z-30"
+        >
+          ?
+        </button>
+
+        {/* output */}
+        <div
+          ref={outputRef}
+          className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5"
+        >
+          {(() => {
+            const result: React.ReactNode[] = [];
+            let i = 0;
+            while (i < lines.length) {
+              const l = lines[i];
+
+              if (l.type === "columns") {
+                const block: typeof lines = [];
+                while (i < lines.length && lines[i].type === "columns") {
+                  block.push(lines[i]);
+                  i++;
+                }
+                result.push(
+                  <div
+                    key={block[0].id}
+                    className="flex flex-col md:flex-row md:gap-8 font-mono text-xs md:text-sm text-primary overflow-hidden"
+                  >
+                    <pre className="shrink-0 leading-relaxed mb-4 md:mb-0">
+                      {block.map((r) => r.left).join("\n")}
+                    </pre>
+                    <div className="flex flex-col md:justify-center min-w-0 leading-relaxed">
+                      {isMobileView
+                        ? block
+                            .map((r) => r.right ?? "")
+                            .filter((v, idx, arr) => arr.indexOf(v) === idx)
+                            .map((r, idx) =>
+                              r.trim() ? (
+                                <span key={idx}>{r}</span>
+                              ) : (
+                                <span key={idx} className="h-2 block" />
+                              ),
+                            )
+                        : block.map((r, idx) =>
+                            r.right?.trim() ? (
+                              <span key={idx}>{r.right}</span>
+                            ) : (
+                              <span key={idx} className="h-[1lh] block" />
+                            ),
+                          )}
+                    </div>
+                  </div>,
+                );
+                continue;
+              }
+
+              if (l.type === "blank") {
+                result.push(<div key={l.id} className="h-2" />);
+                i++;
+                continue;
+              }
+
+              result.push(
+                <div
+                  key={l.id}
+                  className={
+                    l.type === "echo"
+                      ? "text-foreground/40 font-mono text-xs md:text-sm"
+                      : l.type === "error"
+                        ? "text-red-500 font-mono text-xs md:text-sm"
+                        : "text-primary font-mono text-xs md:text-sm"
+                  }
+                >
+                  {l.text}
+                </div>,
+              );
+              i++;
+            }
+            return result;
+          })()}
+        </div>
+
+        {/* divider */}
+        <div className="bg-primary h-[1px] border-b border-foreground shrink-0" />
+
+        {/* input bar */}
+        <div
+          className="bg-background text-primary py-2 md:py-3 px-3 md:px-4 md:pl-[2%] flex items-center cursor-text shrink-0"
+          onClick={() => inputRef.current?.focus()}
+        >
+          <div className="flex items-center w-full ml-2">
+            <span className="shrink-0 text-xs md:text-sm">
+              user@xsedev.xyz~/
+            </span>
+
+            <div className="relative flex items-center flex-1">
+              <span className="font-mono text-xs md:text-sm">{input}</span>
+              <span className="input-blink">|</span>
+            </div>
+
+            <input
+              ref={inputRef}
+              autoFocus
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="w-0 opacity-0 absolute pointer-events-none"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onTouchStart={() => inputRef.current?.focus()}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Command Drawer */}
+      <CommandDrawer
+        isOpen={showDrawer}
+        onClose={() => setShowDrawer(false)}
+        commands={commands}
+      />
+    </main>
+  );
+}

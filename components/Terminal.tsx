@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTerminal, blank, line, type Line } from "@/hooks/useTerminal";
 import { commands } from "@/lib/commands";
+import { terminalBus, closePanel } from "@/lib/events";
+import { ResumePanel } from "@/components/panels/ResumePanel";
 
 const ASCII_ART = `
 ⠀⠀⠀⢠⣾⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -27,12 +29,13 @@ const ASCII_ART = `
 `.trim();
 
 const RIGHT_COLUMN = [
-  "  xsedev", // ← your name / handle
+  "  xsedev",
   "  full-stack developer",
   "",
   "  > about      who I am",
   "  > skills     tech stack",
   "  > projects   things I've built",
+  "  > resume     view my resume",
   "  > contact    get in touch",
   "",
   "  ───────────────────────",
@@ -65,7 +68,8 @@ function buildWelcomeLines(isMobileView: boolean = false): Line[] {
   ];
 }
 
-// Command drawer component
+// ─── Command Drawer ───────────────────────────────────────────────────────────
+
 function CommandDrawer({
   isOpen,
   onClose,
@@ -77,22 +81,15 @@ function CommandDrawer({
 }) {
   return (
     <>
-      {/* Backdrop */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       )}
 
-      {/* Drawer */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-primary transition-transform duration-300 md:hidden ${
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-primary transition-transform duration-300 ${
           isOpen ? "translate-y-0" : "translate-y-full"
         }`}
-        style={{
-          maxHeight: "70vh",
-        }}
+        style={{ maxHeight: "70vh" }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-primary">
           <span className="text-primary font-mono text-sm">
@@ -130,31 +127,31 @@ function CommandDrawer({
   );
 }
 
+// ─── Terminal ─────────────────────────────────────────────────────────────────
+
 export default function Terminal() {
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [shouldClear, setShouldClear] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
 
-  // Detect mobile view using media query
+  // ── Responsive / orientation ──────────────────────────────────────────────
   useEffect(() => {
-    // Check initial state - use a more mobile-specific breakpoint
     const mediaQuery = window.matchMedia("(max-width: 900px)");
     const newMobileView = mediaQuery.matches;
 
     if (newMobileView !== isMobileView) {
       setIsMobileView(newMobileView);
-      setShouldClear(true); // Flag that we need to clear
+      setShouldClear(true);
     }
 
-    // Listen for changes
     const handleChange = (e: MediaQueryListEvent) => {
       setIsMobileView(e.matches);
-      setShouldClear(true); // Flag that we need to clear
+      setShouldClear(true);
     };
 
-    // Also listen for orientation changes
     const handleOrientationChange = () => {
       setTimeout(() => {
         const mq = window.matchMedia("(max-width: 900px)");
@@ -172,7 +169,22 @@ export default function Terminal() {
     };
   }, [isMobileView]);
 
-  // Generate welcome lines based on device type
+  // ── Panel event bus ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      setActivePanel((e as CustomEvent).detail.id);
+    };
+    const onClose = () => setActivePanel(null);
+
+    terminalBus.addEventListener("open-panel", onOpen);
+    terminalBus.addEventListener("close-panel", onClose);
+
+    return () => {
+      terminalBus.removeEventListener("open-panel", onOpen);
+      terminalBus.removeEventListener("close-panel", onClose);
+    };
+  }, []);
+
   const WELCOME_LINES = buildWelcomeLines(isMobileView);
 
   const { lines, input, setInput, handleKeyDown } = useTerminal(
@@ -180,13 +192,12 @@ export default function Terminal() {
     WELCOME_LINES,
   );
 
-  // Trigger clear when view changes
+  // ── Clear on resize ───────────────────────────────────────────────────────
   useEffect(() => {
     if (shouldClear) {
       setInput("clear");
       setShouldClear(false);
 
-      // Properly trigger the Enter key on the input element
       const triggerClear = () => {
         if (inputRef.current) {
           inputRef.current.dispatchEvent(
@@ -202,38 +213,54 @@ export default function Terminal() {
         }
       };
 
-      // Use rAF to ensure it happens after state updates
       requestAnimationFrame(() => {
         setTimeout(triggerClear, 50);
       });
     }
   }, [shouldClear]);
 
-  // Handle keyboard shortcuts
+  // ── Global keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Only intercept ? if input is NOT focused
       const isInputFocused = document.activeElement === inputRef.current;
 
-      // Toggle drawer with ? (only if not typing)
+      // ESC: close panel first, then drawer
+      if (e.key === "Escape") {
+        if (activePanel) {
+          setActivePanel(null);
+          return;
+        }
+        if (showDrawer) {
+          setShowDrawer(false);
+          return;
+        }
+      }
+
       if ((e.key === "?" || (e.shiftKey && e.key === "/")) && !isInputFocused) {
         e.preventDefault();
         setShowDrawer((prev) => !prev);
-      }
-      // Close drawer with Escape
-      if (e.key === "Escape" && showDrawer) {
-        setShowDrawer(false);
       }
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [showDrawer]);
+  }, [showDrawer, activePanel]);
 
-  // Handle mobile keyboard appearance/disappearance
+  // ── Auto-scroll ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (outputRef.current) {
+      requestAnimationFrame(() => {
+        outputRef.current?.scrollTo({
+          top: outputRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      });
+    }
+  }, [lines]);
+
+  // ── Mobile keyboard / viewport ────────────────────────────────────────────
   useEffect(() => {
     const handleFocus = () => {
-      // Scroll input into view when keyboard appears
       setTimeout(() => {
         inputRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -243,18 +270,17 @@ export default function Terminal() {
     };
 
     const handleViewportChange = () => {
-      // Keep output scrolled to bottom when keyboard changes viewport
       setTimeout(() => {
         outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
       }, 100);
     };
 
     const input = inputRef.current;
-    input?.addEventListener("focus", handleFocus);
+    if (input) input.addEventListener("focus", handleFocus);
     window.visualViewport?.addEventListener("resize", handleViewportChange);
 
     return () => {
-      input?.removeEventListener("focus", handleFocus);
+      if (input) input.removeEventListener("focus", handleFocus);
       window.visualViewport?.removeEventListener(
         "resize",
         handleViewportChange,
@@ -262,152 +288,165 @@ export default function Terminal() {
     };
   }, []);
 
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
-    <main
-      className="h-screen w-screen bg-background text-foreground flex items-center justify-center"
-      onClick={() => {
-        inputRef.current?.focus();
-      }}
-    >
-      <div
-        className="w-full md:w-[90%] md:h-[80dvh] md:min-h-[300px] shadow-[2px_2px_0px_var(--foreground)] overflow-hidden flex flex-col relative"
-        style={{
-          height: "100dvh",
-          maxHeight: "100vh", // Fallback for when keyboard appears
-        }}
-      >
-        {/* title bar */}
-        <div className="bg-primary py-2 md:py-3 px-4 pl-4 md:pl-[5%] shadow-[2px_0px_0px_var(--primary)] flex items-center shrink-0 text-sm md:text-base">
-          <span>XSE TERMINAL</span>
-        </div>
+    <div className="w-screen min-h-screen bg-background text-foreground scrollbar-custom">
+      <style>{`
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+          background: var(--primary);
+          border-radius: 4px;
+          border: 2px solid var(--background);
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--foreground); }
+        * { scrollbar-color: var(--primary) transparent; scrollbar-width: thin; }
+      `}</style>
 
-        {/* Floating help button (mobile only) */}
-        <button
-          onClick={() => setShowDrawer(!showDrawer)}
-          className="md:hidden fixed bottom-20 right-4 w-10 h-10 bg-primary text-background border border-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors font-mono text-lg font-bold z-30"
-        >
-          ?
-        </button>
-
-        {/* output */}
+      {/* ── Terminal container ── */}
+      <div className="flex items-center justify-center px-4 py-8 md:py-12">
         <div
-          ref={outputRef}
-          className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5"
-        >
-          {(() => {
-            const result: React.ReactNode[] = [];
-            let i = 0;
-            while (i < lines.length) {
-              const l = lines[i];
-
-              if (l.type === "columns") {
-                const block: typeof lines = [];
-                while (i < lines.length && lines[i].type === "columns") {
-                  block.push(lines[i]);
-                  i++;
-                }
-                result.push(
-                  <div
-                    key={block[0].id}
-                    className="flex flex-col md:flex-row md:gap-8 font-mono text-xs md:text-sm text-primary overflow-hidden"
-                  >
-                    <pre className="shrink-0 leading-relaxed mb-4 md:mb-0">
-                      {block.map((r) => r.left).join("\n")}
-                    </pre>
-                    <div className="flex flex-col md:justify-center min-w-0 leading-relaxed">
-                      {isMobileView
-                        ? block
-                            .map((r) => r.right ?? "")
-                            .filter((v, idx, arr) => arr.indexOf(v) === idx)
-                            .map((r, idx) =>
-                              r.trim() ? (
-                                <span key={idx}>{r}</span>
-                              ) : (
-                                <span key={idx} className="h-2 block" />
-                              ),
-                            )
-                        : block.map((r, idx) =>
-                            r.right?.trim() ? (
-                              <span key={idx}>{r.right}</span>
-                            ) : (
-                              <span key={idx} className="h-[1lh] block" />
-                            ),
-                          )}
-                    </div>
-                  </div>,
-                );
-                continue;
-              }
-
-              if (l.type === "blank") {
-                result.push(<div key={l.id} className="h-2" />);
-                i++;
-                continue;
-              }
-
-              result.push(
-                <div
-                  key={l.id}
-                  className={
-                    l.type === "echo"
-                      ? "text-foreground/40 font-mono text-xs md:text-sm"
-                      : l.type === "error"
-                        ? "text-red-500 font-mono text-xs md:text-sm"
-                        : "text-primary font-mono text-xs md:text-sm"
-                  }
-                >
-                  {l.text}
-                </div>,
-              );
-              i++;
-            }
-            return result;
-          })()}
-        </div>
-
-        {/* divider */}
-        <div className="bg-primary h-[1px] border-b border-foreground shrink-0" />
-
-        {/* input bar */}
-        <div
-          className="bg-background text-primary py-2 md:py-3 px-3 md:px-4 md:pl-[2%] flex items-center cursor-text shrink-0"
+          className="w-full md:max-w-[70%] shadow-[2px_2px_0px_var(--foreground)] overflow-hidden flex flex-col relative"
+          style={{ height: "min(80vh, 600px)", minHeight: "300px" }}
           onClick={() => inputRef.current?.focus()}
         >
-          <div className="flex items-center w-full ml-2">
-            <span className="shrink-0 text-xs md:text-sm">
-              user@xsedev.xyz~/
-            </span>
+          {/* title bar */}
+          <div className="bg-primary py-2 md:py-3 px-4 pl-4 md:pl-[5%] shadow-[2px_0px_0px_var(--primary)] flex items-center shrink-0 text-sm md:text-base">
+            <span>XSE TERMINAL</span>
+          </div>
 
-            <div className="relative flex items-center flex-1">
-              <span className="font-mono text-xs md:text-sm">{input}</span>
-              <span className="input-blink">|</span>
+          {/* floating help button */}
+          <button
+            onClick={() => setShowDrawer(!showDrawer)}
+            className="fixed bottom-6 right-4 w-10 h-10 bg-primary text-background border border-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors font-mono text-lg font-bold z-30"
+          >
+            ?
+          </button>
+
+          {/* output */}
+          <div
+            ref={outputRef}
+            className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5 w-full"
+          >
+            {(() => {
+              const result: React.ReactNode[] = [];
+              let i = 0;
+              while (i < lines.length) {
+                const l = lines[i];
+
+                if (l.type === "columns") {
+                  const block: typeof lines = [];
+                  while (i < lines.length && lines[i].type === "columns") {
+                    block.push(lines[i]);
+                    i++;
+                  }
+                  result.push(
+                    <div
+                      key={`col-${block[0].id}`}
+                      className="w-full flex flex-col md:flex-row md:gap-8 font-mono text-xs md:text-sm text-primary flex-shrink-0"
+                    >
+                      <pre className="shrink-0 leading-relaxed mb-4 md:mb-0 whitespace-pre">
+                        {block.map((r) => r.left).join("\n")}
+                      </pre>
+                      <div className="flex flex-col md:justify-center min-w-0 leading-relaxed flex-shrink-0">
+                        {isMobileView
+                          ? block
+                              .map((r) => r.right ?? "")
+                              .filter((v, idx, arr) => arr.indexOf(v) === idx)
+                              .map((r, idx) =>
+                                r.trim() ? (
+                                  <span key={idx}>{r}</span>
+                                ) : (
+                                  <span key={idx} className="h-2 block" />
+                                ),
+                              )
+                          : block.map((r, idx) =>
+                              r.right?.trim() ? (
+                                <span key={idx}>{r.right}</span>
+                              ) : (
+                                <span key={idx} className="h-[1lh] block" />
+                              ),
+                            )}
+                      </div>
+                    </div>,
+                  );
+                  continue;
+                }
+
+                if (l.type === "blank") {
+                  result.push(
+                    <div key={`blank-${l.id}`} className="h-2 flex-shrink-0" />,
+                  );
+                  i++;
+                  continue;
+                }
+
+                result.push(
+                  <div
+                    key={`line-${l.id}`}
+                    className={
+                      l.type === "echo"
+                        ? "text-foreground/40 font-mono text-xs md:text-sm flex-shrink-0"
+                        : l.type === "error"
+                          ? "text-red-500 font-mono text-xs md:text-sm flex-shrink-0"
+                          : "text-primary font-mono text-xs md:text-sm flex-shrink-0"
+                    }
+                  >
+                    {l.text}
+                  </div>,
+                );
+                i++;
+              }
+              return result;
+            })()}
+          </div>
+
+          {/* divider */}
+          <div className="bg-primary h-[1px] border-b border-foreground shrink-0" />
+
+          {/* input bar */}
+          <div
+            className="bg-background text-primary py-2 md:py-3 px-3 md:px-4 md:pl-[2%] flex items-center cursor-text shrink-0"
+            onClick={() => inputRef.current?.focus()}
+          >
+            <div className="flex items-center w-full ml-2">
+              <span className="shrink-0 text-xs md:text-sm">
+                user@xsedev.xyz~/
+              </span>
+              <div className="relative flex items-center flex-1">
+                <span className="font-mono text-xs md:text-sm">{input}</span>
+                <span className="input-blink">|</span>
+              </div>
+              <input
+                ref={inputRef}
+                autoFocus
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                className="w-0 opacity-0 absolute pointer-events-none"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
             </div>
-
-            <input
-              ref={inputRef}
-              autoFocus
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              className="w-0 opacity-0 absolute pointer-events-none"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onTouchStart={() => inputRef.current?.focus()}
-            />
           </div>
         </div>
       </div>
 
-      {/* Command Drawer */}
+      {/* ── Command Drawer ── */}
       <CommandDrawer
         isOpen={showDrawer}
         onClose={() => setShowDrawer(false)}
         commands={commands}
       />
-    </main>
+
+      {/* ── Panels ── */}
+      {activePanel === "resume" && <ResumePanel />}
+      {/* add future panels here: {activePanel === "gallery" && <GalleryPanel />} */}
+    </div>
   );
 }

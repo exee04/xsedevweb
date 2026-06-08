@@ -4,6 +4,7 @@ import {
   line,
   type CommandDefinition,
 } from "../hooks/useTerminal";
+import { openPanel } from "./events";
 
 // ─── Add / edit your commands here ───────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export const commands: Record<string, CommandDefinition> = {
       blank(),
     ],
   },
+
   "?": {
     description: "show help",
     handler: () => {
@@ -35,6 +37,7 @@ export const commands: Record<string, CommandDefinition> = {
       ];
     },
   },
+
   skills: {
     description: "tech stack & tools",
     handler: () => [
@@ -91,6 +94,14 @@ export const commands: Record<string, CommandDefinition> = {
 
       window.open(url, "_blank", "noopener,noreferrer");
       return [line(`opening ${name}...`), blank()];
+    },
+  },
+
+  resume: {
+    description: "view my resume",
+    handler: () => {
+      openPanel("resume");
+      return [line("opening resume..."), blank()];
     },
   },
 };

@@ -187,7 +187,7 @@ export default function Terminal() {
 
   const WELCOME_LINES = buildWelcomeLines(isMobileView);
 
-  const { lines, input, setInput, handleKeyDown } = useTerminal(
+  const { lines, input, setInput, handleKeyDown, submitInput } = useTerminal(
     commands,
     WELCOME_LINES,
   );
@@ -258,7 +258,7 @@ export default function Terminal() {
     }
   }, [lines]);
 
-  // ── Mobile keyboard / viewport ────────────────────────────────────────────
+  // ── Mobile keyboard scroll into view ──────────────────────────────────────
   useEffect(() => {
     const handleFocus = () => {
       setTimeout(() => {
@@ -269,22 +269,11 @@ export default function Terminal() {
       }, 300);
     };
 
-    const handleViewportChange = () => {
-      setTimeout(() => {
-        outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight });
-      }, 100);
-    };
-
     const input = inputRef.current;
     if (input) input.addEventListener("focus", handleFocus);
-    window.visualViewport?.addEventListener("resize", handleViewportChange);
 
     return () => {
       if (input) input.removeEventListener("focus", handleFocus);
-      window.visualViewport?.removeEventListener(
-        "resize",
-        handleViewportChange,
-      );
     };
   }, []);
 
@@ -305,10 +294,15 @@ export default function Terminal() {
       `}</style>
 
       {/* ── Terminal container ── */}
-      <div className="flex items-center justify-center px-4 py-8 md:py-12">
+      <div
+        className="flex items-center justify-center px-4 py-8 md:py-12 w-screen"
+        style={isMobileView ? { position: "fixed", inset: 0, padding: 0 } : {}}
+      >
         <div
-          className="w-full md:max-w-[70%] shadow-[2px_2px_0px_var(--foreground)] overflow-hidden flex flex-col relative"
-          style={{ height: "min(80vh, 600px)", minHeight: "300px" }}
+          className="w-full md:max-w-[70%] shadow-[2px_2px_0px_var(--foreground)] overflow-hidden flex flex-col"
+          style={{
+            height: isMobileView ? "100dvh" : "min(80vh, 600px)",
+          }}
           onClick={() => inputRef.current?.focus()}
         >
           {/* title bar */}
@@ -316,15 +310,7 @@ export default function Terminal() {
             <span>XSE TERMINAL</span>
           </div>
 
-          {/* floating help button */}
-          <button
-            onClick={() => setShowDrawer(!showDrawer)}
-            className="fixed bottom-6 right-4 w-10 h-10 bg-primary text-background border border-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors font-mono text-lg font-bold z-30"
-          >
-            ?
-          </button>
-
-          {/* output */}
+          {/* output - scrollable */}
           <div
             ref={outputRef}
             className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5 w-full"
@@ -410,24 +396,21 @@ export default function Terminal() {
             className="bg-background text-primary py-2 md:py-3 px-3 md:px-4 md:pl-[2%] flex items-center cursor-text shrink-0"
             onClick={() => inputRef.current?.focus()}
           >
-            <div className="flex items-center w-full ml-2">
+            <div className="flex items-center w-full ml-2 gap-2">
               <span className="shrink-0 text-xs md:text-sm">
                 user@xsedev.xyz~/
               </span>
-              <div className="relative flex items-center flex-1">
-                <span className="font-mono text-xs md:text-sm">{input}</span>
-                <span className="input-blink">|</span>
-              </div>
               <input
                 ref={inputRef}
                 autoFocus
                 type="text"
                 inputMode="text"
+                enterKeyHint="go"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                className="w-0 opacity-0 absolute pointer-events-none"
+                className="flex-1 bg-transparent text-primary font-mono text-xs md:text-sm outline-none border-none caret-primary min-w-0"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -436,6 +419,15 @@ export default function Terminal() {
           </div>
         </div>
       </div>
+
+      {/* ── Help button ── */}
+      <button
+        type="button"
+        onClick={() => setShowDrawer((prev) => !prev)}
+        className="fixed bottom-6 right-4 w-10 h-10 bg-primary text-background border border-foreground rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors font-mono text-lg font-bold z-50 md:z-50"
+      >
+        ?
+      </button>
 
       {/* ── Command Drawer ── */}
       <CommandDrawer
@@ -446,7 +438,6 @@ export default function Terminal() {
 
       {/* ── Panels ── */}
       {activePanel === "resume" && <ResumePanel />}
-      {/* add future panels here: {activePanel === "gallery" && <GalleryPanel />} */}
     </div>
   );
 }

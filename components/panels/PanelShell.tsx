@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { closePanel } from "@/lib/events";
 
 export function PanelShell({
@@ -8,7 +9,7 @@ export function PanelShell({
 }: {
   title: string;
   children: React.ReactNode;
-  className?: string; // caller controls width, height, maxHeight etc.
+  className?: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">

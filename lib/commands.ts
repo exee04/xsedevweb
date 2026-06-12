@@ -2,27 +2,57 @@ import {
   blank,
   error,
   line,
+  multiline,
   type CommandDefinition,
 } from "../hooks/useTerminal";
 import { openPanel } from "./events";
 
-// ─── Add / edit your commands here ───────────────────────────────────────────
+const ABOUT_ART = `\
+         .----:.            
+      -+*%%#%%%%#+.         
+   .+####%%%%%%%%%%*.       
+  -%%%%#%%%@%%%######=      
+ =%%%%%%###%%%%%%%%%%%-     
+ %%%%%%%#***#%%%%%%%%%%.    
+ %%%@%%#****#**%%%@@@%%-    
+ %%%%%##****#*+*%%@@@@@-    
+ =#%%#*##*****+*#%%@@@%:    
+  -#**+*%###**+*#%%%%%#     
+   +++=+***+==++*###*++.    
+   .:---=====++++==-- .     
+    .---:--=+-=+=-:-::      
+     -=---==-::-===-:       
+     .:-----===+===-        
+      :----========:        
+      .---===++++=::*+.     
+    -====-====++=:..---.    
+:=====++:===++=:..:---=####*
+======+*-.:=-:...-----+%%%%%
+======+**-+%%#-:------*%%%%%
+=======*#+*@%+--------*@@%%%
+=======+**#%#---------*@@%%@
+==+=====+%%@%*-------=*@@%@@`;
 
+// ─── Add / edit your commands here ───────────────────────────────────────────
 export const commands: Record<string, CommandDefinition> = {
   about: {
     description: "who I am",
     handler: () => [
       line("about"),
-      line("─".repeat(32)),
-      line("  hey, I'm XSE — full-stack developer"),
-      line("  based somewhere on the internet."),
       blank(),
-      line("  I build fast, minimal web experiences."),
-      line("  open to freelance & collab work."),
+      ...multiline(ABOUT_ART, "output", ""),
+      blank(),
+      line("─".repeat(32)),
+      ...multiline(`
+        hey, I'm XSE — full-stack developer
+        based somewhere on the internet.
+
+        I build fast, minimal web experiences.
+        open to freelance & collab work.
+      `),
       blank(),
     ],
   },
-
   "?": {
     description: "show help",
     handler: () => {
@@ -37,7 +67,6 @@ export const commands: Record<string, CommandDefinition> = {
       ];
     },
   },
-
   skills: {
     description: "tech stack & tools",
     handler: () => [
@@ -50,7 +79,6 @@ export const commands: Record<string, CommandDefinition> = {
       blank(),
     ],
   },
-
   projects: {
     description: "things I've built",
     handler: () => [
@@ -64,7 +92,6 @@ export const commands: Record<string, CommandDefinition> = {
       blank(),
     ],
   },
-
   contact: {
     description: "get in touch",
     handler: () => [
@@ -76,7 +103,6 @@ export const commands: Record<string, CommandDefinition> = {
       blank(),
     ],
   },
-
   open: {
     description: "open a project  (usage: open <name>)",
     handler: (args) => {
@@ -85,18 +111,14 @@ export const commands: Record<string, CommandDefinition> = {
         openlib: "https://github.com/xsedev/openlib",
         nightowl: "https://xsedev.xyz/nightowl",
       };
-
       const name = args[0]?.toLowerCase();
       if (!name) return [error("usage: open <project-name>"), blank()];
-
       const url = targets[name];
       if (!url) return [error(`open: unknown project: ${name}`), blank()];
-
       window.open(url, "_blank", "noopener,noreferrer");
       return [line(`opening ${name}...`), blank()];
     },
   },
-
   resume: {
     description: "view my resume",
     handler: () => {

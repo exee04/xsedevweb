@@ -2,18 +2,12 @@ import { useState, useCallback, useRef } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type LineType =
-  | "echo" // the command the user typed
-  | "output" // plain output text
-  | "error" // red error text
-  | "blank" // empty spacer line
-  | "columns"; // two-column layout (ascii + guide)
+export type LineType = "echo" | "output" | "error" | "blank" | "columns";
 
 export interface Line {
   id: number;
   type: LineType;
   text: string;
-  // only used when type === "columns"
   left?: string;
   right?: string;
 }
@@ -21,7 +15,7 @@ export interface Line {
 export type CommandHandler = (args: string[]) => Line[];
 
 export interface CommandDefinition {
-  description: string; // shown in help
+  description: string;
   handler: CommandHandler;
 }
 
@@ -40,13 +34,49 @@ export const blank = (): Line => line("", "blank");
 export const error = (text: string): Line => line(text, "error");
 export const echo = (text: string): Line => line(text, "echo");
 
-// Splits a multi-line string into individual Line objects.
-// Trims leading/trailing newlines from the template literal.
-export const multiline = (text: string, type: LineType = "output"): Line[] =>
-  text
-    .trim()
-    .split("\n")
-    .map((row) => line(row, type));
+/**
+ * Convert a multiline string into an array of Lines.
+ *
+ * Automatically strips:
+ *   - leading/trailing blank lines
+ *   - common leading indentation (dedent)
+ *
+ * Usage — plain string:
+ *   ...multiline(`
+ *     hello world
+ *     second line
+ *   `)
+ *
+ * Usage — with a prefix per line:
+ *   ...multiline(`
+ *     frontend  →  React
+ *     backend   →  Node
+ *   `, "output", "  ")   // adds "  " before every line
+ */
+export const multiline = (
+  text: string,
+  type: LineType = "output",
+  prefix = "  ",
+): Line[] => {
+  const rawLines = text.split("\n");
+
+  // strip leading/trailing blank lines
+  while (rawLines.length && rawLines[0].trim() === "") rawLines.shift();
+  while (rawLines.length && rawLines[rawLines.length - 1].trim() === "")
+    rawLines.pop();
+
+  // find common indent to strip (dedent)
+  const minIndent = rawLines
+    .filter((l) => l.trim().length > 0)
+    .reduce((min, l) => {
+      const indent = l.match(/^(\s*)/)?.[1].length ?? 0;
+      return Math.min(min, indent);
+    }, Infinity);
+
+  return rawLines.map((l) =>
+    line(prefix + l.slice(minIndent === Infinity ? 0 : minIndent), type),
+  );
+};
 
 // ─── Built-in commands ────────────────────────────────────────────────────────
 
@@ -71,10 +101,7 @@ function makeBuiltins(
     },
     clear: {
       description: "reset to welcome screen",
-      handler: () => {
-        // handled specially in runCommand
-        return [];
-      },
+      handler: () => [],
     },
   };
 }
@@ -91,7 +118,6 @@ export function useTerminal(
   const historyRef = useRef<string[]>([]);
   const welcomeRef = useRef<Line[]>(welcomeLines);
 
-  // keep welcomeRef in sync if caller changes welcomeLines reference
   welcomeRef.current = welcomeLines;
 
   const resetToWelcome = useCallback(() => {
@@ -108,7 +134,6 @@ export function useTerminal(
       const trimmed = raw.trim();
       if (!trimmed) return;
 
-      // add to history (skip duplicates at top)
       if (historyRef.current[0] !== trimmed) {
         historyRef.current = [trimmed, ...historyRef.current];
       }
@@ -119,7 +144,6 @@ export function useTerminal(
       const all = { ...builtins, ...registry };
       const def = all[name.toLowerCase()];
 
-      // special case: clear resets to welcome
       if (name.toLowerCase() === "clear") {
         resetToWelcome();
         return;
@@ -143,11 +167,15 @@ export function useTerminal(
     [registry, push, resetToWelcome],
   );
 
+  const submitInput = useCallback(() => {
+    runCommand(input);
+    setInput("");
+  }, [input, runCommand]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       const history = historyRef.current;
 
-      // Ctrl+C or Cmd+C: clear input (like normal terminal)
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         e.preventDefault();
         setInput("");
@@ -156,8 +184,8 @@ export function useTerminal(
       }
 
       if (e.key === "Enter") {
-        runCommand(input);
-        setInput("");
+        e.preventDefault();
+        submitInput();
         return;
       }
 
@@ -193,7 +221,7 @@ export function useTerminal(
         return;
       }
     },
-    [input, historyIdx, registry, runCommand],
+    [input, historyIdx, registry, submitInput, resetToWelcome],
   );
 
   return {
@@ -201,6 +229,7 @@ export function useTerminal(
     input,
     setInput,
     handleKeyDown,
+    submitInput,
     push,
   };
 }

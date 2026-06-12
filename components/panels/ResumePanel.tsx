@@ -2,7 +2,6 @@
 import dynamic from "next/dynamic";
 import { PanelShell } from "./PanelShell";
 
-// Skip SSR — react-pdf relies on browser APIs
 const MobilePdfViewer = dynamic(
   () => import("./MobilePdfViewer").then((m) => m.MobilePdfViewer),
   {
@@ -17,7 +16,7 @@ export function ResumePanel() {
       title="resume"
       className="max-w-2xl w-full max-h-[95vh] md:max-h-[95vh]"
     >
-      {/* Desktop: plain iframe — works great on all desktop browsers */}
+      {/* Desktop: plain iframe */}
       <div className="hidden md:flex flex-col gap-3">
         <div
           className="w-full border border-primary/20"
@@ -38,7 +37,7 @@ export function ResumePanel() {
         </a>
       </div>
 
-      {/* Mobile: PDF.js page-by-page viewer */}
+      {/* Mobile: tap-to-fullscreen PDF viewer */}
       <div className="md:hidden">
         <MobilePdfViewer url="/resume.pdf" />
       </div>

@@ -29,18 +29,21 @@ const ASCII_ART = `
 `.trim();
 
 const RIGHT_COLUMN = [
-  "  xsedev",
-  "  full-stack developer",
+  "  xsedev | Kyrelle Loyola",
+  "  Full-Stack Developer",
   "",
-  "  > about      who I am",
-  "  > skills     tech stack",
-  "  > projects   things I've built",
-  "  > resume     view my resume",
-  "  > contact    get in touch",
+  "  type a command to get started",
+
+  "  > about      | WHO IS THIS DEV???",
+  "  > skills     | My Tech Stack",
+  "  > experience | Where I've worked",
+  "  > projects   | Stuff I built",
+  "  > resume     | My Resume",
+  "  > contact    | Reach out to me!",
   "",
   "  ───────────────────────",
   "",
-  "  type a command to get started",
+  "  'help' to show all the commands!",
 ];
 
 const MOBILE_RIGHT_COLUMN = [
@@ -74,10 +77,14 @@ function CommandDrawer({
   isOpen,
   onClose,
   commands,
+  onCommandSelect,
+  onClear,
 }: {
   isOpen: boolean;
   onClose: () => void;
   commands: Record<string, { description: string }>;
+  onCommandSelect: (cmd: string) => void;
+  onClear: () => void;
 }) {
   return (
     <>
@@ -92,15 +99,27 @@ function CommandDrawer({
         style={{ maxHeight: "70vh" }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-primary">
-          <span className="text-primary font-mono text-sm">
+          <span className="text-primary font-mono text-sm select-none">
             available commands
           </span>
-          <button
-            onClick={onClose}
-            className="text-primary text-lg hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {/* clear shortcut */}
+            <button
+              onClick={() => {
+                onClear();
+                onClose();
+              }}
+              className="text-foreground/50 font-mono text-xs border border-foreground/20 px-2 py-1 hover:text-primary hover:border-primary transition-colors select-none"
+            >
+              clear
+            </button>
+            <button
+              onClick={onClose}
+              className="text-primary text-lg hover:text-foreground transition-colors select-none"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div
@@ -109,24 +128,30 @@ function CommandDrawer({
         >
           <div className="space-y-2 font-mono text-xs text-primary">
             {Object.entries(commands).map(([name, cmd]) => (
-              <div key={name} className="pb-2 border-b border-primary/20">
+              <button
+                key={name}
+                className="w-full text-left pb-2 border-b border-primary/20 select-none active:bg-primary/10 transition-colors"
+                onClick={() => {
+                  onCommandSelect(name);
+                  onClose();
+                }}
+              >
                 <div className="text-foreground/80 mb-1">
                   <span className="text-primary">&gt; {name}</span>
                 </div>
                 <div className="text-foreground/60 ml-2">{cmd.description}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="px-4 py-2 border-t border-primary/20 text-xs text-foreground/50 font-mono">
-          press ? to close
+        <div className="px-4 py-2 border-t border-primary/20 text-xs text-foreground/50 font-mono select-none">
+          tap a command to run it
         </div>
       </div>
     </>
   );
 }
-
 // ─── Terminal ─────────────────────────────────────────────────────────────────
 
 export default function Terminal() {
@@ -169,6 +194,39 @@ export default function Terminal() {
     };
   }, [isMobileView]);
 
+  // add this inside Terminal(), near your other handlers
+  const handleCommandSelect = (cmd: string) => {
+    setInput(cmd);
+    // small delay so the input is set before we submit
+    setTimeout(() => {
+      inputRef.current?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, 50);
+  };
+
+  const handleClear = () => {
+    setInput("clear");
+    setTimeout(() => {
+      inputRef.current?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, 50);
+  };
   // ── Panel event bus ───────────────────────────────────────────────────────
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -280,7 +338,7 @@ export default function Terminal() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="w-screen min-h-screen bg-background text-foreground scrollbar-custom">
+    <div className="w-screen min-h-screen text-foreground scrollbar-custom">
       <style>{`
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -313,7 +371,7 @@ export default function Terminal() {
           {/* output - scrollable */}
           <div
             ref={outputRef}
-            className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5 w-full"
+            className="bg-background flex-1 overflow-y-auto px-3 md:px-[2%] py-3 md:py-4 flex flex-col gap-0.5 w-full select-none"
           >
             {(() => {
               const result: React.ReactNode[] = [];
@@ -434,8 +492,9 @@ export default function Terminal() {
         isOpen={showDrawer}
         onClose={() => setShowDrawer(false)}
         commands={commands}
+        onCommandSelect={handleCommandSelect}
+        onClear={handleClear}
       />
-
       {/* ── Panels ── */}
       {activePanel === "resume" && <ResumePanel />}
     </div>

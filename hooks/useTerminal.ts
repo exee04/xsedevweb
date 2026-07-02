@@ -86,11 +86,10 @@ function makeBuiltins(
 ): Record<string, CommandDefinition> {
   return {
     help: {
-      description: "list all available commands",
+      description: "| list all available commands",
       handler: () => {
         const all = { ...makeBuiltins(registry, resetToWelcome), ...registry };
         return [
-          line("available commands"),
           line("─".repeat(32)),
           ...Object.entries(all).map(([name, def]) =>
             line(`  ${name.padEnd(14)} ${def.description}`),
@@ -100,7 +99,7 @@ function makeBuiltins(
       },
     },
     clear: {
-      description: "reset to welcome screen",
+      description: "| clean screen",
       handler: () => [],
     },
   };

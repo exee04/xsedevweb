@@ -10,6 +10,9 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "xsedev_terminal",
   description: "Terminal Portfolio",
+  icons: {
+    icon: "/xsedev_logo.ico",
+  },
 };
 
 export const viewport: Viewport = {

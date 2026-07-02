@@ -7,48 +7,46 @@ import {
 } from "../hooks/useTerminal";
 import { openPanel } from "./events";
 
-const ABOUT_ART = `\
-         .----:.            
-      -+*%%#%%%%#+.         
-   .+####%%%%%%%%%%*.       
-  -%%%%#%%%@%%%######=      
- =%%%%%%###%%%%%%%%%%%-     
- %%%%%%%#***#%%%%%%%%%%.    
- %%%@%%#****#**%%%@@@%%-    
- %%%%%##****#*+*%%@@@@@-    
- =#%%#*##*****+*#%%@@@%:    
-  -#**+*%###**+*#%%%%%#     
-   +++=+***+==++*###*++.    
-   .:---=====++++==-- .     
-    .---:--=+-=+=-:-::      
-     -=---==-::-===-:       
-     .:-----===+===-        
-      :----========:        
-      .---===++++=::*+.     
-    -====-====++=:..---.    
-:=====++:===++=:..:---=####*
-======+*-.:=-:...-----+%%%%%
-======+**-+%%#-:------*%%%%%
-=======*#+*@%+--------*@@%%%
-=======+**#%#---------*@@%%@
-==+=====+%%@%*-------=*@@%@@`;
-
 // ─── Add / edit your commands here ───────────────────────────────────────────
 export const commands: Record<string, CommandDefinition> = {
   about: {
-    description: "who I am",
+    description: "| WHO IS THIS DEV??",
     handler: () => [
       line("about"),
       blank(),
-      ...multiline(ABOUT_ART, "output", ""),
-      blank(),
       line("─".repeat(32)),
-      ...multiline(`
-        hey, I'm XSE — full-stack developer
-        based somewhere on the internet.
 
-        I build fast, minimal web experiences.
-        open to freelance & collab work.
+      ...multiline(`
+        Hello! I am Kyrelle Loyola
+        You can call me Ky(Kai) or Xse
+        A Computer Science graduate who runs on energy drinks and big dreams
+      `),
+      blank(),
+
+      ...multiline(`
+        What have I done?
+        My developer experience has been mostly around two fields
+        Flutter Development And Computer Vision Based Projects
+        Check out 'projects' for further info
+      `),
+      blank(),
+
+      ...multiline(`
+        What do I like?
+        White Monster Energy Drink
+        Black Cats
+        The color purple
+        Deadlock
+      `),
+      blank(),
+
+      ...multiline(`
+        What is this "BIG DREAM"?
+        To work as a Robotics Software Engineer!
+        I would love to make a smart vacuum cleaner
+        that utilizes computer vision and AI
+        to fetch me a can of my favorite beverage
+        Yep, thats me. Contact me via 'contact' command if you wanna get to know me better!
       `),
       blank(),
     ],

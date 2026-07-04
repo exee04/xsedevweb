@@ -11,6 +11,7 @@ const WORD_LIST = [
   "flutter",
   "manifestingjob",
   "gurt",
+  "hiremeplease",
 ];
 
 export default function MatrixRain() {
